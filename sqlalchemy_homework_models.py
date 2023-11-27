@@ -1,6 +1,7 @@
 
 import sqlalchemy as sq
 from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import MetaData, Table
 
 Base = declarative_base()
 class BaseModel(Base):
@@ -33,27 +34,13 @@ class Stock(BaseModel):
 
 class Sale(BaseModel):
     __tablename__ = 'Sales'
+
     price = sq.Column(sq.Float)
-    date_sale = sq.Column(sq.DateTime)
+    date_sale = sq.Column(sq.Text)
     id_stock = sq.Column(sq.Integer, sq.ForeignKey('Stocks.id'), nullable=False)
     count = sq.Column(sq.Integer)
 
     stock = relationship(Stock, backref='sales')
-
-class Book_to_Stock(BaseModel):
-    __tablename__ = 'Book_to_Stock'
-    id_stock = sq.Column(sq.Integer, sq.ForeignKey('Stocks.id'), nullable=False)
-    title = sq.Column(sq.String(length=40), sq.ForeignKey('Books.title'), nullable=False)
-    id_shop = sq.Column(sq.Integer, sq.ForeignKey('Shops.id'), nullable=False)
-
-class Stock_to_Sale(BaseModel):
-    __tablename__ = 'Stock_to_Sale'
-    # title = sq.Column(sq.String(length=40), sq.ForeignKey('Books.title'), nullable=False)
-    # shop_name = sq.Column(sq.String(length=40), sq.ForeignKey('Shops.name'), unique=True)
-    # id_stock = sq.Column(sq.Integer, sq.ForeignKey('Stocks.id'), nullable=False)
-    title = sq.Column(sq.String(length=40), nullable=False)
-    shop_name = sq.Column(sq.String(length=40))
-    id_stock = sq.Column(sq.Integer, sq.ForeignKey('Stocks.id'), nullable=False)
 
 def create_tables(engine):
     Base.metadata.create_all(engine)
@@ -61,8 +48,7 @@ def create_tables(engine):
 def delete_tables(engine):
     Base.metadata.drop_all(engine)
 
-def drop_table(engine, table):
-    table.__table__.drop(engine)
+
 
 
 

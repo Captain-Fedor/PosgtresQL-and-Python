@@ -1,7 +1,7 @@
-import sqlalchemy
+from sqlalchemy import select, create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy_homework_models import create_tables, delete_tables, drop_table,\
-    Publisher, Book, Shop, Stock, Sale, Book_to_Stock, Stock_to_Sale
+from sqlalchemy_homework_models import create_tables, delete_tables,\
+    Publisher, Book, Shop, Stock, Sale
 import json
 
 with open('credentials.txt', 'r') as file:
@@ -10,7 +10,7 @@ with open('credentials.txt', 'r') as file:
     password = file.readline().strip()
 
 DSN = 'postgresql://%s:%s@localhost:5432/%s' % (username, password, data_base)
-engine = sqlalchemy.create_engine(DSN)
+engine = create_engine(DSN)
 
 delete_tables(engine)
 create_tables(engine)
@@ -53,7 +53,7 @@ for item in stocks:
     session.commit()
 for item in sales:
     price = item['fields']['price']
-    date_sale = item['fields']['date_sale']
+    date_sale = (item['fields']['date_sale'][0:10])
     id_stock = item['fields']['id_stock']
     count = item['fields']['count']
     data = Sale(price=price, date_sale=date_sale, id_stock=id_stock, count=count)
@@ -66,46 +66,18 @@ publisher_name = 'O’Reilly'
 
 """ обьединения таблиц и запросы"""
 
-subq = session.query(Book).join(Publisher).filter(Publisher.name == publisher_name).subquery()
-query = session.query(Stock).join(subq, Stock.id_book == subq.c.id)
-for p in query:            #помежуточная таблица с названием книги и id магазина Book_to_Stock
-    title = p.book.title
-    id_shop = p.id_shop
-    id_stock = p.id
-    data = Book_to_Stock(title=title, id_shop=id_shop, id_stock=id_stock)
-    session.add(data)
-    session.commit()
-
-query = session.query(Book_to_Stock, Shop).\
-    outerjoin(Shop, Book_to_Stock.id_shop == Shop.id).all()
-
-        #промежуточная таблица с названием книги, названием магазина, id_stock Stock_to_Sale
-for Book_to_Stock, Shop in query:
-    title = Book_to_Stock.title
-    shop_name = Shop.name
-    id_stock = Book_to_Stock.id_stock
-    data = Stock_to_Sale(title=title, shop_name=shop_name, id_stock=id_stock)
-    session.add(data)
-    session.commit()
+data = select(Book.title, Shop.name, Sale.price*Sale.count,Sale.date_sale).select_from(Publisher, Book, Stock, Shop, Sale).\
+    join(Book, Publisher.id == Book.id_publisher).filter(Publisher.name == publisher_name). \
+    join(Stock, Book.id == Stock.id_book).\
+    join(Shop, Stock.id_shop == Shop.id).\
+    join(Sale, Stock.id == Sale.id_stock)
 
 """вывод результата"""
 
-print(Book_to_Stock.title, Shop.name, Book_to_Stock.id_stock)
-print()
-print()
-query = session.query(Stock_to_Sale, Sale).\
-    join(Sale, Stock_to_Sale.id_stock == Sale.id_stock).all()
-
 print("{:<42} {:<12} {:<13} {:<12}".format('Book name', 'Shop name', 'Total price', 'Date'))
 print()
-for Stock_to_Sale, Sale in query:
-   print("{:<42} {:<12} {:<13} {:<12}".format(Stock_to_Sale.title, Stock_to_Sale.shop_name,
-                                              Sale.price*Sale.count, Sale.date_sale.date()))
-
-"""удаление промежуточных таблицц"""
-
-drop_table(engine, Book_to_Stock)
-drop_table(engine, Stock_to_Sale)
+for row in session.execute(data):
+    print("{:<42} {:<12} {:<13} {:<12}".format(row[0], row[1], row[2], row[3]))
 
 session.close()
 
